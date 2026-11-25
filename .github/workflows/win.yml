@@ -1,0 +1,44 @@
+name: Kemai Windows
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: AlexandrePTJ/kemai
+          ref: 26.11.1
+
+      - uses: lukka/get-cmake@latest
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.3'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake --preset release "-DKEMAI_VERSION=26.11.1" "-DKEMAI_CHANNEL=stable" -DBUILD_TESTING=OFF
+
+      - name: Build
+        run: cmake --build --preset release
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add --global WixToolset.UI.wixext/5.0.2
+          wix extension add --global WixToolset.Util.wixext/5.0.2
+
+      - name: Build installer
+        run: cpack -G WIX --config build/release/CPackConfig.cmake -B build/package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kemai-windows
+          path: build/package/*.msi
+          if-no-files-found: error
